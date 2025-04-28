@@ -1,14 +1,17 @@
 import os.path
+from dotenv import load_dotenv
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
-def main():
+load_dotenv()
+LABEL_ID = os.getenv("LABEL_ID")
+
+def authenticate_gmail() -> object:
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
@@ -21,23 +24,15 @@ def main():
         with open("token.json", "w") as token:
             token.write(creds.to_json())
     
-    try:
-        # Call the Gmail API
-        service = build("gmail", "v1", credentials=creds)
-        results = service.users().labels().list(userId="me").execute()
-        labels = results.get("labels", [])
+    service = build("gmail", "v1", credentials=creds)
+    return service
 
-        if not labels:
-            print("No labels found.")
-            return
-        print("Labels:")
-        for label in labels:
-            print(label["name"])
-
-    except HttpError as error:
-        # TODO(developer): Handle errors from gmail API.
-        print(f"An error occurred: {error}")
-
+def list_emails(service: object, label_id: str) -> None:
+    results = service.users().messages().list(userId="me", labelIds=label_id).execute()
+    messages = results.get("messages", [])
+    print(messages)
+    
 
 if __name__ == "__main__":
-  main()
+  service = authenticate_gmail()
+  list_emails(service, LABEL_ID)
